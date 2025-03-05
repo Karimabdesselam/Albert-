@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مثال على Word2Vec</title>
+    <link rel="stylesheet" href="styles.css"> <!-- رابط لملف CSS -->
+    <script src="data/wordvecs10000.js"></script> <!-- تأكد من مسار الملف -->
+    <script src="assets/js/word2vecutils.js"></script> <!-- تأكد من مسار الملف -->
+</head>
+<body>
+    <div class="container">
+        <h1>مثال على Word2Vec</h1>
+        
+        <!-- حقل لإدخال نص جديد -->
+        <h2>إضافة نص جديد</h2>
+        <textarea id="input-text" placeholder="أدخل نصك هنا..." rows="4"></textarea>
+        <button id="save-text-btn">احفظ النص</button>
+        <button id="clear-texts-btn">احذف جميع النصوص</button> <!-- زر لحذف النصوص -->
+
+        <h2>البحث عن الجمل المشابهة</h2>
+        <input type="text" id="target-sentence" placeholder="أدخل الجملة هنا" /> <!-- حقل لإدخال الجملة -->
+        <button id="list-sim-btn">احصل على الكلمات المشابهة</button>
+        
+        <div id="results">
+            <table id="sim-table">
+                <thead>
+                    <tr>
+                        <th>الكلمة</th>
+                        <th>الدرجة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- هنا ستظهر الكلمات المشابهة -->
+                </tbody>
+            </table>
+        </div>
+
+        <h2>النصوص المتشابهة</h2>
+        <div id="similar-texts">
+            <!-- هنا ستظهر النصوص المتشابهة -->
+        </div>
+    </div>
+
+    <script>
+        var Word2VecDemo = (function() {
+            'use strict';
+
+            var NUM_TO_SHOW = 10;
+            var texts = []; // مصفوفة لتخزين النصوص المدخلة
+
+            function initWordToVecDemo() {
+                // استرجاع النصوص المحفوظة من Local Storage
+                const storedTexts = localStorage.getItem('texts');
+                if (storedTexts) {
+                    texts = JSON.parse(storedTexts); // تحويل النصوص المحفوظة من JSON إلى مصفوفة
+                }
+
+                // حدث زر حفظ النص
+                document.getElementById('save-text-btn').addEventListener('click', function() {
+                    var inputText = document.getElementById('input-text').value; 
+                    if (inputText) {
+                        texts.push(inputText); // إضافة النص إلى المصفوفة
+                        document.getElementById('input-text').value = ''; // مسح حقل الإدخال
+                        localStorage.setItem('texts', JSON.stringify(texts)); // حفظ المصفوفة في Local Storage
+                        alert('تم حفظ النص بنجاح!');
+                    }
+                });
+
+                // حدث زر حذف جميع النصوص
+                document.getElementById('clear-texts-btn').addEventListener('click', function() {
+                    texts = []; // مسح المصفوفة
+                    localStorage.removeItem('texts'); // حذف النصوص من Local Storage
+                    alert('تم حذف جميع النصوص!');
+                    document.getElementById('similar-texts').innerHTML = ''; // مسح النصوص المعروضة
+                });
+
+                // حدث زر البحث عن الكلمات المشابهة
+                document.getElementById('list-sim-btn').addEventListener('click', function() {
+                    var sentence = document.getElementById('target-sentence').value.toLowerCase(); // تحويل الجملة إلى أحرف صغيرة
+                    var words = sentence.split(' '); // تقسيم الجملة إلى كلمات
+                    var simWords = []; // مصفوفة لتخزين الكلمات المشابهة
+
+                    // استرجاع الكلمات المشابهة لكل كلمة في الجملة
+                    words.forEach(function(word) {
+                        var wordSim = Word2VecUtils.findSimilarWords(NUM_TO_SHOW, word);
+                        simWords = simWords.concat(wordSim); // دمج النتائج
+                    });
+
+                    renderSimilarities('#sim-table', simWords);
+                    findSimilarTexts(simWords); // البحث عن النصوص المتشابهة
+                });
+            }
+
+            function renderSimilarities(id, sims) {
+                const tableBody = document.querySelector(id + ' tbody');
+                tableBody.innerHTML = '';
+                if (sims[0] === false) {
+                    tableBody.innerHTML = '<tr><td colspan="2">لا يوجد متجه لتلك الكلمة. حاول كلمة أخرى.</td></tr>';
+                } else {
+                    sims.forEach(function(sim) {
+                        var tr = document.createElement('tr');
+                        tr.innerHTML = '<td>' + sim[0] + '</td><td>' + sim[1] + '</td>';
+                        tableBody.appendChild(tr);
+                    });
+                }
+            }
+
+            function findSimilarTexts(simWords) {
+                const similarTextsDiv = document.getElementById('similar-texts');
+                similarTextsDiv.innerHTML = ''; // مسح النصوص السابقة
+
+                if (texts.length === 0) {
+                    similarTextsDiv.innerHTML = '<p>لا توجد نصوص محفوظة.</p>';
+                    return;
+                }
+
+                // البحث عن النصوص التي تحتوي على كلمات مشابهة
+                texts.forEach(function(text) {
+                    simWords.forEach(function(sim) {
+                        // تحويل النص والكلمة المشابهة إلى أحرف صغيرة
+                        if (text.toLowerCase().includes(sim[0].toLowerCase())) {
+                            var p = document.createElement('p');
+                            p.textContent = text;
+                            similarTextsDiv.appendChild(p);
+                        }
+                    });
+                });
+
+                if (similarTextsDiv.innerHTML === '') {
+                    similarTextsDiv.innerHTML = '<p>لا توجد نصوص تتطابق مع الكلمات المشابهة.</p>';
+                }
+            }
+
+            return {
+                init: initWordToVecDemo
+            };
+        })();
+
+        window.addEventListener('load', Word2VecDemo.init);
+    </script>
+</body>
+</html>
